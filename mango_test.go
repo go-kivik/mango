@@ -57,6 +57,11 @@ func TestUnmarshal(t *testing.T) {
 				},
 			},
 		},
+		{
+			name:     "explicit $eq",
+			input:    `{"director":{"$eq":"Lars von Trier"}}`,
+			expected: Selector{op: opEq, field: "director", value: "Lars von Trier"},
+		},
 		// {
 		// 	// http://docs.couchdb.org/en/2.0.0/api/database/find.html#subfields
 		// 	name:  "subfields 1",
@@ -75,7 +80,7 @@ func TestUnmarshal(t *testing.T) {
 			expected: Selector{
 				op:    op,
 				field: "director",
-				value: []byte(`"Lars von Trier"`),
+				value: "Lars von Trier",
 			},
 		})
 	}

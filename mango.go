@@ -68,7 +68,7 @@ func (s *Selector) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-func opPattern(data []byte) (op operator, pattern []byte, err error) {
+func opPattern(data []byte) (op operator, value interface{}, err error) {
 	var x map[string]json.RawMessage
 	if e := json.Unmarshal(data, &x); e != nil {
 		return operator(""), nil, e
@@ -79,7 +79,11 @@ func opPattern(data []byte) (op operator, pattern []byte, err error) {
 	for k, v := range x {
 		switch operator(k) {
 		case opEq, opNE, opLT, opLTE, opGT, opGTE:
-			return operator(k), v, nil
+			var value interface{}
+			if e := json.Unmarshal(v, &value); e != nil {
+				return "", nil, e
+			}
+			return operator(k), value, nil
 		default:
 			return "", nil, fmt.Errorf("unknown mango operator '%s'", k)
 		}
