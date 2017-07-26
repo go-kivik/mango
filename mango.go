@@ -47,7 +47,7 @@ func (s *Selector) UnmarshalJSON(data []byte) error {
 				return e
 			}
 		}
-		if value == nil {
+		if op == "" {
 			op = opEq
 			if e := json.Unmarshal(v, &value); e != nil {
 				return e

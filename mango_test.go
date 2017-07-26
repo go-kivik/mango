@@ -82,6 +82,11 @@ func TestUnmarshal(t *testing.T) {
 			input:    `{"director":{"$lte":"Lars von Trier"}}`,
 			expected: Selector{op: opLTE, field: "director", value: "Lars von Trier"},
 		},
+		{
+			name:     "find test",
+			input:    `{"_id":{"$gt":null}}`,
+			expected: Selector{op: opGT, field: "_id", value: nil},
+		},
 		// {
 		// 	// http://docs.couchdb.org/en/2.0.0/api/database/find.html#subfields
 		// 	name:  "subfields 1",
