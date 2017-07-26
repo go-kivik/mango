@@ -220,6 +220,18 @@ func TestMatches(t *testing.T) {
 			doc:      couchDoc{"foo": "bar"},
 			expected: false,
 		},
+		{
+			name:     "$lt zzz",
+			sel:      mustNew(`{"foo":{"$lt":"bar"}}`),
+			doc:      couchDoc{"foo": "zzz"},
+			expected: false,
+		},
+		{
+			name:     "$lt aaa",
+			sel:      mustNew(`{"foo":{"$lt":"bar"}}`),
+			doc:      couchDoc{"foo": "aaa"},
+			expected: true,
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {

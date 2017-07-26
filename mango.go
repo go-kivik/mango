@@ -71,7 +71,7 @@ func (s *Selector) UnmarshalJSON(data []byte) error {
 }
 
 func opPattern(data []byte) (op operator, value interface{}, err error) {
-	var x map[string]json.RawMessage
+	var x map[operator]json.RawMessage
 	if e := json.Unmarshal(data, &x); e != nil {
 		return operator(""), nil, e
 	}
@@ -79,13 +79,13 @@ func opPattern(data []byte) (op operator, value interface{}, err error) {
 		panic("got more than one result")
 	}
 	for k, v := range x {
-		switch operator(k) {
+		switch k {
 		case opEq, opNE, opLT, opLTE, opGT, opGTE:
 			var value interface{}
 			if e := json.Unmarshal(v, &value); e != nil {
 				return "", nil, e
 			}
-			return operator(k), value, nil
+			return k, value, nil
 		default:
 			return "", nil, fmt.Errorf("unknown mango operator '%s'", k)
 		}
@@ -108,15 +108,15 @@ func (s *Selector) Matches(doc couchDoc) (bool, error) {
 		}
 		switch s.op {
 		case opEq:
-			return c.Eq(s.value, v), nil
+			return c.Eq(v, s.value), nil
 		case opGT:
-			return c.GT(s.value, v), nil
+			return c.GT(v, s.value), nil
 		case opGTE:
-			return c.GTE(s.value, v), nil
+			return c.GTE(v, s.value), nil
 		case opLT:
-			return c.LT(s.value, v), nil
+			return c.LT(v, s.value), nil
 		case opLTE:
-			return c.LTE(s.value, v), nil
+			return c.LTE(v, s.value), nil
 		}
 	case opAnd:
 		for _, sel := range s.sel {
