@@ -3,6 +3,8 @@ package mango
 import (
 	"encoding/json"
 	"fmt"
+
+	"github.com/flimzy/kivik/collate"
 )
 
 // Selector represents a CouchDB Find query selector. See
@@ -68,7 +70,7 @@ func (s *Selector) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-func opPattern(data []byte) (op operator, pattern []byte, err error) {
+func opPattern(data []byte) (op operator, value interface{}, err error) {
 	var x map[string]json.RawMessage
 	if e := json.Unmarshal(data, &x); e != nil {
 		return operator(""), nil, e
@@ -79,7 +81,11 @@ func opPattern(data []byte) (op operator, pattern []byte, err error) {
 	for k, v := range x {
 		switch operator(k) {
 		case opEq, opNE, opLT, opLTE, opGT, opGTE:
-			return operator(k), v, nil
+			var value interface{}
+			if e := json.Unmarshal(v, &value); e != nil {
+				return "", nil, e
+			}
+			return operator(k), value, nil
 		default:
 			return "", nil, fmt.Errorf("unknown mango operator '%s'", k)
 		}
@@ -91,16 +97,26 @@ type couchDoc map[string]interface{}
 
 // Matches returns true if the provided doc matches the selector.
 func (s *Selector) Matches(doc couchDoc) (bool, error) {
+	c := &collate.Raw{}
 	switch s.op {
 	case opNone:
 		return true, nil
-	case opEq:
+	case opEq, opGT, opGTE, opLT, opLTE:
 		v, ok := doc[s.field]
 		if !ok {
 			return false, nil
 		}
-		if v != s.value {
-			return false, nil
+		switch s.op {
+		case opEq:
+			return c.Eq(s.value, v), nil
+		case opGT:
+			return c.GT(s.value, v), nil
+		case opGTE:
+			return c.GTE(s.value, v), nil
+		case opLT:
+			return c.LT(s.value, v), nil
+		case opLTE:
+			return c.LTE(s.value, v), nil
 		}
 	case opAnd:
 		for _, sel := range s.sel {

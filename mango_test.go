@@ -57,6 +57,31 @@ func TestUnmarshal(t *testing.T) {
 				},
 			},
 		},
+		{
+			name:     "explicit $eq",
+			input:    `{"director":{"$eq":"Lars von Trier"}}`,
+			expected: Selector{op: opEq, field: "director", value: "Lars von Trier"},
+		},
+		{
+			name:     "explicit $gt",
+			input:    `{"director":{"$gt":"Lars von Trier"}}`,
+			expected: Selector{op: opGT, field: "director", value: "Lars von Trier"},
+		},
+		{
+			name:     "explicit $gte",
+			input:    `{"director":{"$gte":"Lars von Trier"}}`,
+			expected: Selector{op: opGTE, field: "director", value: "Lars von Trier"},
+		},
+		{
+			name:     "explicit $lt",
+			input:    `{"director":{"$lt":"Lars von Trier"}}`,
+			expected: Selector{op: opLT, field: "director", value: "Lars von Trier"},
+		},
+		{
+			name:     "explicit $lte",
+			input:    `{"director":{"$lte":"Lars von Trier"}}`,
+			expected: Selector{op: opLTE, field: "director", value: "Lars von Trier"},
+		},
 		// {
 		// 	// http://docs.couchdb.org/en/2.0.0/api/database/find.html#subfields
 		// 	name:  "subfields 1",
@@ -75,7 +100,7 @@ func TestUnmarshal(t *testing.T) {
 			expected: Selector{
 				op:    op,
 				field: "director",
-				value: []byte(`"Lars von Trier"`),
+				value: "Lars von Trier",
 			},
 		})
 	}
@@ -158,6 +183,36 @@ func TestMatches(t *testing.T) {
 			name:     "compound match, one miss",
 			sel:      mustNew(`{"foo":"bar","baz":"qux"}`),
 			doc:      couchDoc{"foo": "bar", "baz": "quxx"},
+			expected: false,
+		},
+		{
+			name:     "explicit $eq",
+			sel:      mustNew(`{"foo":{"$eq":"bar"}}`),
+			doc:      couchDoc{"foo": "bar", "baz": "quxx"},
+			expected: true,
+		},
+		{
+			name:     "$gt",
+			sel:      mustNew(`{"foo":{"$gt":"bar"}}`),
+			doc:      couchDoc{"foo": "bar"},
+			expected: false,
+		},
+		{
+			name:     "$gte",
+			sel:      mustNew(`{"foo":{"$gte":"bar"}}`),
+			doc:      couchDoc{"foo": "bar"},
+			expected: true,
+		},
+		{
+			name:     "$lte",
+			sel:      mustNew(`{"foo":{"$lte":"bar"}}`),
+			doc:      couchDoc{"foo": "bar"},
+			expected: true,
+		},
+		{
+			name:     "$lt",
+			sel:      mustNew(`{"foo":{"$lt":"bar"}}`),
+			doc:      couchDoc{"foo": "bar"},
 			expected: false,
 		},
 	}
