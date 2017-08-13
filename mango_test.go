@@ -7,7 +7,7 @@ import (
 	"github.com/flimzy/diff"
 )
 
-type Selectors []Selector
+type Selectors []*Selector
 
 var _ sort.Interface = &Selectors{}
 
@@ -125,57 +125,94 @@ func TestUnmarshal(t *testing.T) {
 		{
 			name:     "explicit $eq",
 			input:    `{"director":{"$eq":"Lars von Trier"}}`,
-			expected: Selector{op: opEq, field: "director", value: "Lars von Trier"},
+			expected: Selector{operator: opEq, field: "director", value: "Lars von Trier"},
 		},
 		{
 			name:     "explicit $lt",
 			input:    `{"director":{"$lt":"Lars von Trier"}}`,
-			expected: Selector{op: opLT, field: "director", value: "Lars von Trier"},
+			expected: Selector{operator: opLT, field: "director", value: "Lars von Trier"},
 		},
 		{
 			name:     "explicit $lte",
 			input:    `{"director":{"$lte":"Lars von Trier"}}`,
-			expected: Selector{op: opLTE, field: "director", value: "Lars von Trier"},
+			expected: Selector{operator: opLTE, field: "director", value: "Lars von Trier"},
 		},
 		{
 			name:     "explicit $ne",
 			input:    `{"director":{"$ne":"Lars von Trier"}}`,
-			expected: Selector{op: opNE, field: "director", value: "Lars von Trier"},
+			expected: Selector{operator: opNE, field: "director", value: "Lars von Trier"},
 		},
 		{
 			name:     "explicit $gt",
 			input:    `{"director":{"$gt":"Lars von Trier"}}`,
-			expected: Selector{op: opGT, field: "director", value: "Lars von Trier"},
+			expected: Selector{operator: opGT, field: "director", value: "Lars von Trier"},
 		},
 		{
 			name:     "explicit $gte",
 			input:    `{"director":{"$gte":"Lars von Trier"}}`,
-			expected: Selector{op: opGTE, field: "director", value: "Lars von Trier"},
+			expected: Selector{operator: opGTE, field: "director", value: "Lars von Trier"},
 		},
 		{
 			// http://docs.couchdb.org/en/2.0.0/api/database/find.html#selector-basics
 			name:     "basic",
 			input:    `{"director":"Lars von Trier"}`,
-			expected: Selector{op: opEq, field: "director", value: "Lars von Trier"},
+			expected: Selector{operator: opEq, field: "director", value: "Lars von Trier"},
 		},
 		{ // TODO
 			name:  "subfield",
 			input: `{"director":{"city":"New York"}}`,
 			err:   "subfields not implemented",
 		},
+		{
+			// http://docs.couchdb.org/en/2.0.0/api/database/find.html#selector-with-2-fields
+			name:  "implicit $and",
+			input: `{"name": "Paul", "location": "Boston"}`,
+			expected: Selector{
+				operator: opAnd,
+				subselectors: []*Selector{
+					{operator: opEq, field: "location", value: "Boston"},
+					{operator: opEq, field: "name", value: "Paul"},
+				},
+			},
+		},
+		{ // TODO
+			// http://docs.couchdb.org/en/2.0.0/api/database/find.html#selector-with-2-fields
+			name:  "implicit $and with subfield",
+			input: `{"name": "Paul", "location": {"city": "Boston"}}`,
+			err:   "subfields not implemented",
+		},
+		{
+			name:  "nested combinations",
+			input: `{"name": "Paul", "$or": [ {"city":"New York"}, {"country":"France"}]}`,
+			expected: Selector{
+				operator: opAnd,
+				subselectors: []*Selector{
+					{operator: opOr, subselectors: []*Selector{
+						{operator: opEq, field: "city", value: "New York"},
+						{operator: opEq, field: "country", value: "France"},
+					}},
+					{operator: opEq, field: "name", value: "Paul"},
+				},
+			},
+		},
 
 		// {
-		// 	// http://docs.couchdb.org/en/2.0.0/api/database/find.html#selector-with-2-fields
-		// 	name:  "implicit $and",
-		// 	input: `{"name": "Paul", "location": "Boston"}`,
+		// 	name:  "more nested combinations",
+		// 	input: `{"name": "Paul", "$or": [ {"city":"New York", "country":"France"}]}`,
 		// 	expected: Selector{
-		// 		op: opAnd,
-		// 		sel: []Selector{
-		// 			{op: opEq, field: "location", value: "Boston"},
-		// 			{op: opEq, field: "name", value: "Paul"},
+		// 		operator: opAnd,
+		// 		subselectors: []*Selector{
+		// 			{operator: opOr, subselectors: []*Selector{
+		// 				{operator: opAnd, subselectors: []*Selector{
+		// 					{operator: opEq, field: "city", value: "New York"},
+		// 					{operator: opEq, field: "country", value: "France"},
+		// 				}},
+		// 			}},
+		// 			{operator: opEq, field: "name", value: "Paul"},
 		// 		},
 		// 	},
 		// },
+
 		// // {
 		// // 	// http://docs.couchdb.org/en/2.0.0/api/database/find.html#selector-with-2-fields
 		// // 	name: "explicit $and",
@@ -264,7 +301,7 @@ func TestUnmarshal(t *testing.T) {
 			if err != nil {
 				return
 			}
-			sort.Sort(Selectors(result.sel))
+			sort.Sort(Selectors(result.subselectors))
 			if d := diff.Interface(test.expected, *result); d != nil {
 				t.Error(d)
 			}

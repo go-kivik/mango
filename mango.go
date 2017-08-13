@@ -11,10 +11,21 @@ import (
 // Selector represents a CouchDB Find query selector. See
 // http://docs.couchdb.org/en/2.0.0/api/database/find.html#find-selectors
 type Selector struct {
-	op    string
-	field string
-	value interface{}
-	sel   []Selector
+	operator     string
+	field        string
+	value        interface{}
+	subselectors []*Selector
+}
+
+type combinationNode struct {
+	operator string
+	nodes    []*interface{}
+}
+
+type comparisonNode struct {
+	operator string
+	field    string
+	value    interface{}
 }
 
 // New returns a new selector, parsed from data.
@@ -40,22 +51,14 @@ func (s *Selector) UnmarshalJSON(data []byte) error {
 }
 
 func createSelector(doc map[string]interface{}) (*Selector, error) {
-	var op, field string
-	var value interface{}
-	for key, val := range doc {
-		if isObject(val) { // explicit
-			sel, err := explicitConditionSelector(key, val)
-			if err != nil {
-				return nil, err
-			}
-			return sel, nil
-		}
-		// implicit equality
-		op = opEq
-		field = key
-		value = val
+	if len(doc) > 1 {
+		subselectors, err := createSubselectorArray(doc)
+		return &Selector{operator: opAnd, subselectors: subselectors}, err
 	}
-	return &Selector{op: op, field: field, value: value}, nil
+	for key, val := range doc {
+		return conditionSelector(key, val)
+	}
+	return &Selector{}, nil
 }
 
 func isObject(i interface{}) bool {
@@ -63,11 +66,101 @@ func isObject(i interface{}) bool {
 	return ok
 }
 
+func createSubselectorArray(i map[string]interface{}) ([]*Selector, error) {
+	subselectors := make([]*Selector, 0, len(i))
+	for key, value := range i {
+		subselector, err := createSubselector(key, value)
+		if err != nil {
+			return nil, err
+		}
+		subselectors = append(subselectors, subselector)
+	}
+	return subselectors, nil
+}
+
+func createSubselector(key string, value interface{}) (*Selector, error) {
+	if isCombinationOperator(key) {
+		return combinationSelector(key, value)
+	}
+	return conditionSelector(key, value)
+}
+
+func combinationSelector(operator string, i interface{}) (*Selector, error) {
+	array, ok := i.([]interface{})
+	if !ok {
+		return nil, errors.Errorf("bad argument for operator %s: <<%v>>", operator, i)
+	}
+	selectorMap := make(map[string]interface{}, len(array))
+	for _, obj := range array {
+		if objMap, ok := obj.(map[string]interface{}); ok {
+			if len(objMap) > 1 {
+				return nil, errors.New("Unimplemented")
+			}
+			for key, value := range objMap {
+				selectorMap[key] = value
+			}
+		} else {
+			return nil, errors.New("unimplemented")
+		}
+	}
+	subselectors, err := createSubselectorArray(selectorMap)
+	if err != nil {
+		return nil, err
+	}
+	return &Selector{operator: operator, subselectors: subselectors}, nil
+}
+
+type tuple struct {
+	key   string
+	value interface{}
+}
+
+func tupleArray(i interface{}) []tuple {
+	switch t := i.(type) {
+	case map[string]interface{}:
+		tuples := make([]tuple, 0, len(t))
+		for key, value := range t {
+			tuples = append(tuples, tuple{key: key, value: value})
+		}
+		return tuples
+	case []interface{}:
+		tuples := make([]tuple, 0, len(t))
+		for _, obj := range t {
+			if objMap, ok := obj.(map[string]interface{}); ok {
+				if len(objMap) == 1 {
+					for key, value := range objMap {
+						tuples = append(tuples, tuple{key: key, value: value})
+					}
+				} else {
+					// unimplemented
+				}
+			} else {
+				// unimplemented
+			}
+		}
+		return tuples
+	}
+	// should never happen
+	return nil
+}
+
+func conditionSelector(field string, i interface{}) (*Selector, error) {
+	if isObject(i) { // explicit
+		sel, err := explicitConditionSelector(field, i)
+		if err != nil {
+			return nil, err
+		}
+		return sel, nil
+	}
+	// implicit equality
+	return &Selector{operator: opEq, field: field, value: i}, nil
+}
+
 func explicitConditionSelector(field string, i interface{}) (*Selector, error) {
 	obj, _ := i.(map[string]interface{})
 	for k, v := range obj {
 		if isConditionOperator(k) {
-			return &Selector{op: k, field: field, value: v}, nil
+			return &Selector{operator: k, field: field, value: v}, nil
 		}
 	}
 	return nil, errors.New("subfields not implemented")
@@ -109,52 +202,53 @@ func validateKeys(doc map[string]interface{}) error {
 	return nil
 }
 
-// UnmarshalJSONx unmarshals a JSON selector as described in the CouchDB
-// documentation.
-// http://docs.couchdb.org/en/2.0.0/api/database/find.html#selector-syntax
-func (s *Selector) UnmarshalJSONx(data []byte) error {
-	var x map[string]json.RawMessage
-	if err := json.Unmarshal(data, &x); err != nil {
-		return err
-	}
-	if len(x) == 0 {
-		return nil
-	}
-	var sels []Selector
-	for k, v := range x {
-		var op string
-		var field string
-		var value interface{}
-		field = k
-		if v[0] == '{' {
-			var e error
-			op, value, e = opPattern(v)
-			if e != nil {
-				return e
-			}
-		}
-		if op == "" {
-			op = opEq
-			if e := json.Unmarshal(v, &value); e != nil {
-				return e
-			}
-		}
-		sels = append(sels, Selector{
-			op:    op,
-			field: field,
-			value: value,
-		})
-	}
-	if len(sels) == 1 {
-		*s = sels[0]
-	} else {
-		*s = Selector{
-			op:  opAnd,
-			sel: sels,
-		}
-	}
-	return nil
-}
+//
+// // UnmarshalJSONx unmarshals a JSON selector as described in the CouchDB
+// // documentation.
+// // http://docs.couchdb.org/en/2.0.0/api/database/find.html#selector-syntax
+// func (s *Selector) UnmarshalJSONx(data []byte) error {
+// 	var x map[string]json.RawMessage
+// 	if err := json.Unmarshal(data, &x); err != nil {
+// 		return err
+// 	}
+// 	if len(x) == 0 {
+// 		return nil
+// 	}
+// 	var sels []Selector
+// 	for k, v := range x {
+// 		var op string
+// 		var field string
+// 		var value interface{}
+// 		field = k
+// 		if v[0] == '{' {
+// 			var e error
+// 			op, value, e = opPattern(v)
+// 			if e != nil {
+// 				return e
+// 			}
+// 		}
+// 		if op == "" {
+// 			op = opEq
+// 			if e := json.Unmarshal(v, &value); e != nil {
+// 				return e
+// 			}
+// 		}
+// 		sels = append(sels, Selector{
+// 			op:    op,
+// 			field: field,
+// 			value: value,
+// 		})
+// 	}
+// 	if len(sels) == 1 {
+// 		*s = sels[0]
+// 	} else {
+// 		*s = Selector{
+// 			op:  opAnd,
+// 			sel: sels,
+// 		}
+// 	}
+// 	return nil
+// }
 
 func opPattern(data []byte) (op string, value interface{}, err error) {
 	var x map[string]json.RawMessage
@@ -184,7 +278,7 @@ type couchDoc map[string]interface{}
 // Matches returns true if the provided doc matches the selector.
 func (s *Selector) Matches(doc couchDoc) (bool, error) {
 	c := &collate.Raw{}
-	switch s.op {
+	switch s.operator {
 	case opNone:
 		return true, nil
 	case opEq, opGT, opGTE, opLT, opLTE:
@@ -192,7 +286,7 @@ func (s *Selector) Matches(doc couchDoc) (bool, error) {
 		if !ok {
 			return false, nil
 		}
-		switch s.op {
+		switch s.operator {
 		case opEq:
 			return c.Eq(v, s.value), nil
 		case opGT:
@@ -205,7 +299,7 @@ func (s *Selector) Matches(doc couchDoc) (bool, error) {
 			return c.LTE(v, s.value), nil
 		}
 	case opAnd:
-		for _, sel := range s.sel {
+		for _, sel := range s.subselectors {
 			m, e := sel.Matches(doc)
 			if e != nil || !m {
 				return m, e
@@ -213,7 +307,7 @@ func (s *Selector) Matches(doc couchDoc) (bool, error) {
 		}
 		return true, nil
 	default:
-		return false, fmt.Errorf("unknown mango operator '%s'", s.op)
+		return false, fmt.Errorf("unknown mango operator '%s'", s.operator)
 	}
 	return true, nil
 }
