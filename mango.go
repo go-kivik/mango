@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/flimzy/kivik/collate"
+	"github.com/pkg/errors"
 )
 
 // Selector represents a CouchDB Find query selector. See
@@ -21,6 +22,30 @@ func New(data string) (*Selector, error) {
 	s := &Selector{}
 	err := json.Unmarshal([]byte(data), &s)
 	return s, err
+}
+
+func validateKeys(doc map[string]interface{}) error {
+	for key, value := range doc {
+		if isOperator(key) && !isSupportedOperator(key) {
+			return errors.Errorf("unknown mango operator '%s'", key)
+		}
+
+		switch t := value.(type) {
+		case map[string]interface{}:
+			if err := validateKeys(t); err != nil {
+				return err
+			}
+		case []interface{}:
+			for _, val := range t {
+				if obj, ok := val.(map[string]interface{}); ok {
+					if err := validateKeys(obj); err != nil {
+						return err
+					}
+				}
+			}
+		}
+	}
+	return nil
 }
 
 // UnmarshalJSON unmarshals a JSON selector as described in the CouchDB

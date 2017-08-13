@@ -16,6 +16,90 @@ func (s Selectors) Len() int           { return len(s) }
 func (s Selectors) Less(i, j int) bool { return s[i].field < s[j].field }
 func (s Selectors) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
 
+func TestValidateKeys(t *testing.T) {
+	tests := []struct {
+		name  string
+		input map[string]interface{}
+		err   string
+	}{
+		{
+			name: "valid op only",
+			input: map[string]interface{}{
+				"$and": nil,
+			},
+		},
+		{
+			name: "invalid op only",
+			input: map[string]interface{}{
+				"$foo": nil,
+			},
+			err: "unknown mango operator '$foo'",
+		},
+		{
+			name: "non-operator",
+			input: map[string]interface{}{
+				"foo": "bar",
+			},
+		},
+		{
+			name: "map-nested invalid operator",
+			input: map[string]interface{}{
+				"foo": map[string]interface{}{
+					"$foo": "bar",
+				},
+			},
+			err: "unknown mango operator '$foo'",
+		},
+		{
+			name: "test order of checking",
+			input: map[string]interface{}{
+				"foo": map[string]interface{}{
+					"foo": "bar",
+				},
+				"$invalid": "bar",
+			},
+			err: "unknown mango operator '$invalid'",
+		},
+		{
+			name: "array-nested invalid operator",
+			input: map[string]interface{}{
+				"foo": []interface{}{
+					map[string]interface{}{
+						"$invalid": "foo",
+					},
+				},
+			},
+			err: "unknown mango operator '$invalid'",
+		},
+		{
+			name: "mixed array",
+			input: map[string]interface{}{
+				"foo": []interface{}{
+					map[string]interface{}{
+						"$invalid": "bar",
+					},
+					"some other thing",
+					[]interface{}{},
+					12344,
+				},
+			},
+			err: "unknown mango operator '$invalid'",
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			err := validateKeys(test.input)
+			var errMsg string
+			if err != nil {
+				errMsg = err.Error()
+			}
+			if errMsg != test.err {
+				t.Errorf("Unexpected error: %s", errMsg)
+			}
+		})
+	}
+}
+
 func TestUnmarshal(t *testing.T) {
 	type uTest struct {
 		name     string

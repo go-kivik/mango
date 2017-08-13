@@ -26,3 +26,23 @@ const (
 	// opMod    = "$mod")
 	// opRegex  = "$regex")
 )
+
+var supportedOperators = map[string]struct{}{
+	opAnd: {},
+	opOr:  {},
+	opLT:  {},
+	opLTE: {},
+	opEq:  {},
+	opNE:  {},
+	opGTE: {},
+	opGT:  {},
+}
+
+func isSupportedOperator(str string) bool {
+	_, ok := supportedOperators[str]
+	return ok
+}
+
+func isOperator(str string) bool {
+	return str[0] == '$'
+}
