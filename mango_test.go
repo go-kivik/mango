@@ -98,7 +98,7 @@ func TestUnmarshal(t *testing.T) {
 		// 	},
 		// },
 	}
-	for _, op := range []operator{opLT, opLTE, opEq, opNE, opGTE, opGT} {
+	for _, op := range []string{opLT, opLTE, opEq, opNE, opGTE, opGT} {
 		tests = append(tests, uTest{
 			name:  string(op),
 			input: fmt.Sprintf(`{"director": {"%s": "Lars von Trier"}}`, op),

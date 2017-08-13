@@ -10,7 +10,7 @@ import (
 // Selector represents a CouchDB Find query selector. See
 // http://docs.couchdb.org/en/2.0.0/api/database/find.html#find-selectors
 type Selector struct {
-	op    operator
+	op    string
 	field string
 	value interface{}
 	sel   []Selector
@@ -36,7 +36,7 @@ func (s *Selector) UnmarshalJSON(data []byte) error {
 	}
 	var sels []Selector
 	for k, v := range x {
-		var op operator
+		var op string
 		var field string
 		var value interface{}
 		field = k
@@ -70,10 +70,10 @@ func (s *Selector) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-func opPattern(data []byte) (op operator, value interface{}, err error) {
-	var x map[operator]json.RawMessage
+func opPattern(data []byte) (op string, value interface{}, err error) {
+	var x map[string]json.RawMessage
 	if e := json.Unmarshal(data, &x); e != nil {
-		return operator(""), nil, e
+		return "", nil, e
 	}
 	if len(x) != 1 {
 		panic("got more than one result")
@@ -90,7 +90,7 @@ func opPattern(data []byte) (op operator, value interface{}, err error) {
 			return "", nil, fmt.Errorf("unknown mango operator '%s'", k)
 		}
 	}
-	return operator(""), nil, nil
+	return "", nil, nil
 }
 
 type couchDoc map[string]interface{}
