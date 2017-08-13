@@ -1,7 +1,6 @@
 package mango
 
 import (
-	"fmt"
 	"sort"
 	"testing"
 
@@ -114,47 +113,19 @@ func TestUnmarshal(t *testing.T) {
 			expected: Selector{},
 		},
 		{
-			name:  "Invalid operator",
-			input: `{"foo":{"$invalid":"bar"}}`,
-			err:   "unknown mango operator '$invalid'",
-		},
-		{
 			name:  "invalid JSON",
 			input: "xxx",
 			err:   "invalid character 'x' looking for beginning of value",
 		},
 		{
-			// http://docs.couchdb.org/en/2.0.0/api/database/find.html#selector-basics
-			name:     "basic",
-			input:    `{"director":"Lars von Trier"}`,
-			expected: Selector{op: opEq, field: "director", value: "Lars von Trier"},
-		},
-		{
-			// http://docs.couchdb.org/en/2.0.0/api/database/find.html#selector-with-2-fields
-			name:  "selector with two fields",
-			input: `{"name": "Paul", "location": "Boston"}`,
-			expected: Selector{
-				op: opAnd,
-				sel: []Selector{
-					{op: opEq, field: "location", value: "Boston"},
-					{op: opEq, field: "name", value: "Paul"},
-				},
-			},
+			name:  "Invalid operator",
+			input: `{"foo":{"$invalid":"bar"}}`,
+			err:   "unknown mango operator '$invalid'",
 		},
 		{
 			name:     "explicit $eq",
 			input:    `{"director":{"$eq":"Lars von Trier"}}`,
 			expected: Selector{op: opEq, field: "director", value: "Lars von Trier"},
-		},
-		{
-			name:     "explicit $gt",
-			input:    `{"director":{"$gt":"Lars von Trier"}}`,
-			expected: Selector{op: opGT, field: "director", value: "Lars von Trier"},
-		},
-		{
-			name:     "explicit $gte",
-			input:    `{"director":{"$gte":"Lars von Trier"}}`,
-			expected: Selector{op: opGTE, field: "director", value: "Lars von Trier"},
 		},
 		{
 			name:     "explicit $lt",
@@ -167,32 +138,117 @@ func TestUnmarshal(t *testing.T) {
 			expected: Selector{op: opLTE, field: "director", value: "Lars von Trier"},
 		},
 		{
-			name:     "find test",
-			input:    `{"_id":{"$gt":null}}`,
-			expected: Selector{op: opGT, field: "_id", value: nil},
+			name:     "explicit $ne",
+			input:    `{"director":{"$ne":"Lars von Trier"}}`,
+			expected: Selector{op: opNE, field: "director", value: "Lars von Trier"},
 		},
+		{
+			name:     "explicit $gt",
+			input:    `{"director":{"$gt":"Lars von Trier"}}`,
+			expected: Selector{op: opGT, field: "director", value: "Lars von Trier"},
+		},
+		{
+			name:     "explicit $gte",
+			input:    `{"director":{"$gte":"Lars von Trier"}}`,
+			expected: Selector{op: opGTE, field: "director", value: "Lars von Trier"},
+		},
+		{
+			// http://docs.couchdb.org/en/2.0.0/api/database/find.html#selector-basics
+			name:     "basic",
+			input:    `{"director":"Lars von Trier"}`,
+			expected: Selector{op: opEq, field: "director", value: "Lars von Trier"},
+		},
+		{ // TODO
+			name:  "subfield",
+			input: `{"director":{"city":"New York"}}`,
+			err:   "subfields not implemented",
+		},
+
 		// {
-		// 	// http://docs.couchdb.org/en/2.0.0/api/database/find.html#subfields
-		// 	name:  "subfields 1",
-		// 	input: `{"imdb": {"rating": 8}}`,
+		// 	// http://docs.couchdb.org/en/2.0.0/api/database/find.html#selector-with-2-fields
+		// 	name:  "implicit $and",
+		// 	input: `{"name": "Paul", "location": "Boston"}`,
 		// 	expected: Selector{
-		// 		op:      opEq,
-		// 		field:   "imdb.rating",
-		// 		pattern: []byte("8"),
+		// 		op: opAnd,
+		// 		sel: []Selector{
+		// 			{op: opEq, field: "location", value: "Boston"},
+		// 			{op: opEq, field: "name", value: "Paul"},
+		// 		},
 		// 	},
 		// },
+		// // {
+		// // 	// http://docs.couchdb.org/en/2.0.0/api/database/find.html#selector-with-2-fields
+		// // 	name: "explicit $and",
+		// // 	input: `{"$and": [
+		// // 			{"name": "Paul"},
+		// // 			{"location": "Boston"}
+		// // 		]}`,
+		// // 	expected: Selector{
+		// // 		op: opAnd,
+		// // 		sel: []Selector{
+		// // 			{op: opEq, field: "location", value: "Boston"},
+		// // 			{op: opEq, field: "name", value: "Paul"},
+		// // 		},
+		// // 	},
+		// // },
+		// {
+		// 	name:     "explicit $gt",
+		// 	input:    `{"director":{"$gt":"Lars von Trier"}}`,
+		// 	expected: Selector{op: opGT, field: "director", value: "Lars von Trier"},
+		// },
+		// {
+		// 	name:     "explicit $gte",
+		// 	input:    `{"director":{"$gte":"Lars von Trier"}}`,
+		// 	expected: Selector{op: opGTE, field: "director", value: "Lars von Trier"},
+		// },
+		// {
+		// 	name:     "explicit $lt",
+		// 	input:    `{"director":{"$lt":"Lars von Trier"}}`,
+		// 	expected: Selector{op: opLT, field: "director", value: "Lars von Trier"},
+		// },
+		// {
+		// 	name:     "explicit $lte",
+		// 	input:    `{"director":{"$lte":"Lars von Trier"}}`,
+		// 	expected: Selector{op: opLTE, field: "director", value: "Lars von Trier"},
+		// },
+		// {
+		// 	name:     "find test",
+		// 	input:    `{"_id":{"$gt":null}}`,
+		// 	expected: Selector{op: opGT, field: "_id", value: nil},
+		// },
+		// // {
+		// // 	name: "$or",
+		// // 	input: `{"$or":[
+		// // 			{"foo":"aaa"},
+		// // 			{"foo":"bbb"}
+		// // 		]}`,
+		// // 	expected: Selector{op: opOr, sel: []Selector{
+		// // 		{field: "foo", value: "aaa"},
+		// // 		{field: "foo", value: "bbb"},
+		// // 	}},
+		// // },
+		// // {
+		// // 	// http://docs.couchdb.org/en/2.0.0/api/database/find.html#subfields
+		// // 	name:  "subfields 1",
+		// // 	input: `{"imdb": {"rating": 8}}`,
+		// // 	expected: Selector{
+		// // 		op:      opEq,
+		// // 		field:   "imdb.rating",
+		// // 		pattern: []byte("8"),
+		// // 	},
+		// // },
 	}
-	for _, op := range []string{opLT, opLTE, opEq, opNE, opGTE, opGT} {
-		tests = append(tests, uTest{
-			name:  string(op),
-			input: fmt.Sprintf(`{"director": {"%s": "Lars von Trier"}}`, op),
-			expected: Selector{
-				op:    op,
-				field: "director",
-				value: "Lars von Trier",
-			},
-		})
-	}
+	// for _, op := range []string{opLT, opLTE, opEq, opNE, opGTE, opGT} {
+	// 	tests = append(tests, uTest{
+	// 		name:  string(op),
+	// 		input: fmt.Sprintf(`{"director": {"%s": "Lars von Trier"}}`, op),
+	// 		expected: Selector{
+	// 			op:    op,
+	// 			field: "director",
+	// 			value: "Lars von Trier",
+	// 		},
+	// 	})
+	// }
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -209,7 +265,7 @@ func TestUnmarshal(t *testing.T) {
 				return
 			}
 			sort.Sort(Selectors(result.sel))
-			if d := diff.Interface(test.expected, *result); d != "" {
+			if d := diff.Interface(test.expected, *result); d != nil {
 				t.Error(d)
 			}
 		})
@@ -224,6 +280,7 @@ func mustNew(data string) *Selector {
 	return s
 }
 
+/*
 func TestMatches(t *testing.T) {
 	type mTest struct {
 		name     string
@@ -316,6 +373,15 @@ func TestMatches(t *testing.T) {
 			doc:      couchDoc{"foo": "aaa"},
 			expected: true,
 		},
+		// {
+		// 	name: "aaa $or bbb",
+		// 	sel: mustNew(`{"$or":[
+		// 			{"foo":"aaa"},
+		// 			{"foo":"bbb"}
+		// 		]}`),
+		// 	doc:      couchDoc{"foo": "aaa"},
+		// 	expected: true,
+		// },
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -336,3 +402,4 @@ func TestMatches(t *testing.T) {
 		})
 	}
 }
+*/

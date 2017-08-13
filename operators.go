@@ -27,6 +27,30 @@ const (
 	// opRegex  = "$regex")
 )
 
+var combinationOperators = map[string]struct{}{
+	opAnd: {},
+	opOr:  {},
+}
+
+func isCombinationOperator(str string) bool {
+	_, ok := combinationOperators[str]
+	return ok
+}
+
+var conditionOperators = map[string]struct{}{
+	opLT:  {},
+	opLTE: {},
+	opEq:  {},
+	opNE:  {},
+	opGTE: {},
+	opGT:  {},
+}
+
+func isConditionOperator(str string) bool {
+	_, ok := conditionOperators[str]
+	return ok
+}
+
 var supportedOperators = map[string]struct{}{
 	opAnd: {},
 	opOr:  {},

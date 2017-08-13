@@ -24,6 +24,67 @@ func New(data string) (*Selector, error) {
 	return s, err
 }
 
+// UnmarshalJSON xxx ...
+func (s *Selector) UnmarshalJSON(data []byte) error {
+	doc, err := parseSelectorInput(data)
+	if err != nil {
+		return err
+	}
+
+	sel, err := createSelector(doc)
+	if err != nil {
+		return err
+	}
+	*s = *sel
+	return nil
+}
+
+func createSelector(doc map[string]interface{}) (*Selector, error) {
+	var op, field string
+	var value interface{}
+	for key, val := range doc {
+		if isObject(val) { // explicit
+			sel, err := explicitConditionSelector(key, val)
+			if err != nil {
+				return nil, err
+			}
+			return sel, nil
+		}
+		// implicit equality
+		op = opEq
+		field = key
+		value = val
+	}
+	return &Selector{op: op, field: field, value: value}, nil
+}
+
+func isObject(i interface{}) bool {
+	_, ok := i.(map[string]interface{})
+	return ok
+}
+
+func explicitConditionSelector(field string, i interface{}) (*Selector, error) {
+	obj, _ := i.(map[string]interface{})
+	for k, v := range obj {
+		if isConditionOperator(k) {
+			return &Selector{op: k, field: field, value: v}, nil
+		}
+	}
+	return nil, errors.New("subfields not implemented")
+}
+
+func parseSelectorInput(data []byte) (map[string]interface{}, error) {
+	var doc map[string]interface{}
+	if err := json.Unmarshal(data, &doc); err != nil {
+		return nil, err
+	}
+	return doc, validateKeys(doc)
+}
+
+func populateSelector(selector *Selector, doc map[string]interface{}) error {
+	return nil
+}
+
 func validateKeys(doc map[string]interface{}) error {
 	for key, value := range doc {
 		if isOperator(key) && !isSupportedOperator(key) {
@@ -48,10 +109,10 @@ func validateKeys(doc map[string]interface{}) error {
 	return nil
 }
 
-// UnmarshalJSON unmarshals a JSON selector as described in the CouchDB
+// UnmarshalJSONx unmarshals a JSON selector as described in the CouchDB
 // documentation.
 // http://docs.couchdb.org/en/2.0.0/api/database/find.html#selector-syntax
-func (s *Selector) UnmarshalJSON(data []byte) error {
+func (s *Selector) UnmarshalJSONx(data []byte) error {
 	var x map[string]json.RawMessage
 	if err := json.Unmarshal(data, &x); err != nil {
 		return err
