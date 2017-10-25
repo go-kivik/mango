@@ -125,7 +125,7 @@ func TestUnmarshal(t *testing.T) {
 				return
 			}
 			sort.Sort(Selectors(result.sel))
-			if d := diff.Interface(test.expected, *result); d != "" {
+			if d := diff.Interface(test.expected, *result); d != nil {
 				t.Error(d)
 			}
 		})
