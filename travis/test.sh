@@ -2,12 +2,17 @@
 set -euC
 set -o xtrace
 
-go test -race -cover -covermode=atomic -coverprofile=coverage.txt
+for d in $(go list ./...); do
+    go test -race -coverprofile=profile.out -covermode=atomic "$d"
+    if [ -f profile.out ]; then
+        cat profile.out >> coverage.txt
+        rm profile.out
+    fi
+done
 
-# Only continue if we're on go 1.8; no need to run the linter for every case
-if go version | grep -q go1.8; then
+# Only continue if we're on go 1.9; no need to run the linter for every case
+if go version | grep -q go1.9; then
     diff -u <(echo -n) <(gofmt -e -d $(find . -type f -name '*.go' -not -path "./vendor/*"))
-    gometalinter.v1 --config .linter_test.json
     gometalinter.v1 --config .linter.json
     bash <(curl -s https://codecov.io/bash)
 fi
