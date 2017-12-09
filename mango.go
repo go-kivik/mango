@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/flimzy/kivik/collate"
+	"github.com/go-kivik/mango/collate"
 )
 
 // Selector represents a CouchDB Find query selector. See

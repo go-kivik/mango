@@ -1,4 +1,4 @@
-package collate // import "github.com/flimzy/kivik/collate"
+package collate
 
 import (
 	"math"
