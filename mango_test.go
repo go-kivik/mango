@@ -5,7 +5,7 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/flimzy/diff"
+	"gitlab.com/flimzy/testy"
 )
 
 type Selectors []Selector
@@ -125,7 +125,7 @@ func TestUnmarshal(t *testing.T) {
 				return
 			}
 			sort.Sort(Selectors(result.sel))
-			if d := diff.Interface(test.expected, *result); d != nil {
+			if d := testy.DiffInterface(test.expected, *result); d != nil {
 				t.Error(d)
 			}
 		})
